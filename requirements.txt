@@ -1,5 +1,8 @@
 streamlit
 transformers
+tensorflow
+tf-keras
 torch
 numpy
 pandas
+
