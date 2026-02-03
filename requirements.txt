@@ -1,5 +1,6 @@
 streamlit
 transformers
 tensorflow
-numpy
 tf-keras
+numpy
+pandas
