@@ -11,9 +11,8 @@ st.set_page_config(page_title="Mental Health AI", page_icon="🧠")
 
 @st.cache_resource
 def load_model():
-    # Load the model using the PyTorch version (much more stable for Cloud)
     tokenizer = AutoTokenizer.from_pretrained(HF_REPO)
-    # from_tf=True allows it to read your TensorFlow model and convert it automatically
+    # Adding from_tf=True tells the code to read your TensorFlow files
     model = AutoModelForSequenceClassification.from_pretrained(HF_REPO, from_tf=True)
     return tokenizer, model
 
@@ -60,3 +59,4 @@ try:
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.info("Try refreshing the page or checking the 'Manage app' logs.")
+
