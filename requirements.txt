@@ -1,8 +1,8 @@
 streamlit
-transformers
 tensorflow>=2.17.0,<2.19.0
 tf-keras
 torch
 torchvision
+transformers
 numpy<2.0
 safetensors
