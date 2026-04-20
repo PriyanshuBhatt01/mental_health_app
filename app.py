@@ -1,28 +1,7 @@
-import os
-
-# --- 1. FORCE SYSTEM ARCHITECTURE ---
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
-os.environ["TF_KERAS"] = "1"
-
 import streamlit as st
+import torch
 import numpy as np
-
-# --- 2. THE BULLETPROOF IMPORT BLOCK ---
-try:
-    import tensorflow as tf
-    import tf_keras
-    import torch
-    # We import these specifically so 'transformers' finds them
-    from transformers import AutoTokenizer, TFAutoModelForSequenceClassification, AutoConfig
-    backend_status = "✅ System initialized with TensorFlow backend."
-except ImportError as e:
-    # Fallback: Sometimes 'transformers' needs a second to see tf-keras
-    try:
-        from transformers import AutoTokenizer, AutoConfig
-        from transformers import TFAutoModelForSequenceClassification
-        backend_status = "✅ System initialized (Fallback mode)."
-    except:
-        backend_status = f"❌ Backend Error: {e}"
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 
 # --- CONFIGURATION ---
 HF_REPO = "priyanshubahtt001/mental_health_app" 
@@ -31,51 +10,50 @@ st.set_page_config(page_title="Mental Health AI", page_icon="🧠")
 
 @st.cache_resource
 def load_model():
-    # Fix: AutoConfig is now properly imported above
-    config = AutoConfig.from_pretrained(HF_REPO)
+    # We use the standard AutoModel (PyTorch) which is way more stable
     tokenizer = AutoTokenizer.from_pretrained(HF_REPO)
-    
-    # Load with cross-framework flags
-    model = TFAutoModelForSequenceClassification.from_pretrained(
+    config = AutoConfig.from_pretrained(HF_REPO)
+    model = AutoModelForSequenceClassification.from_pretrained(
         HF_REPO,
         config=config,
-        from_pt=True,
-        use_safetensors=True,
-        low_cpu_mem_usage=True
+        use_safetensors=True # This loads your model.safetensors perfectly
     )
     return tokenizer, model
 
 st.title("🧠 AI Mental Health Analyzer")
-st.info(backend_status)
+st.write("Analyze the emotional state of text using a fine-tuned DistilBERT model.")
 
 try:
-    with st.spinner("Loading DistilBERT weights... (This takes 30-60 seconds)"):
+    with st.spinner("Loading AI Brain..."):
         tokenizer, model = load_model()
+        model.eval() # Set to evaluation mode
     
-    text_input = st.text_area("How are you feeling?", placeholder="Type your thoughts here...", height=150)
+    text_input = st.text_area("How are you feeling?", placeholder="Type here...", height=150)
     
     if st.button("Analyze"):
         if not text_input.strip():
-            st.warning("Please enter text first.")
+            st.warning("Please enter text.")
         else:
-            # Preprocess
-            inputs = tokenizer(text_input, return_tensors="tf", truncation=True, padding=True, max_length=256)
+            # 1. Preprocess (PyTorch style)
+            inputs = tokenizer(text_input, return_tensors="pt", truncation=True, padding=True, max_length=256)
             
-            # Predict
-            outputs = model(inputs)
-            probabilities = tf.nn.softmax(outputs.logits, axis=1).numpy()[0]
+            # 2. Predict (No gradient calculation needed for inference)
+            with torch.no_grad():
+                outputs = model(**inputs)
+                probabilities = torch.nn.functional.softmax(outputs.logits, dim=1).numpy()[0]
             
-            # Labels
+            # 3. Mapping
             class_names = ['Anxiety', 'Bipolar', 'Depression', 'Normal', 'Personality disorder', 'Stress', 'Suicidal']
             predicted_index = np.argmax(probabilities)
             
-            # Output
-            st.markdown(f"### Result: **{class_names[predicted_index]}**")
+            # 4. Results
+            st.markdown(f"### Prediction: **{class_names[predicted_index]}**")
             st.progress(float(probabilities[predicted_index]))
+            st.write(f"Confidence: **{probabilities[predicted_index]*100:.2f}%**")
             
             st.divider()
             chart_data = {class_names[i]: float(probabilities[i]) for i in range(len(class_names))}
             st.bar_chart(chart_data)
 
 except Exception as e:
-    st.error(f"Prediction Error: {e}")
+    st.error(f"System Error: {e}")
